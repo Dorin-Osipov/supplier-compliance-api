@@ -44,3 +44,13 @@ class AssessmentTests(unittest.TestCase):
 
     def test_empty_requirements_are_satisfied(self):
         self.assertTrue(assess_supplier([], [self.expired], self.today).compliant)
+
+    def test_missing_insurance_alone_blocks_onboarding(self):
+        report = assess_supplier(["insurance"], [], self.today)
+        self.assertEqual(report, Assessment(missing=("insurance",), expired=()))
+        self.assertFalse(report.compliant)
+
+    def test_expired_insurance_alone_blocks_onboarding(self):
+        report = assess_supplier(["insurance"], [self.expired], self.today)
+        self.assertEqual(report, Assessment(missing=(), expired=("insurance",)))
+        self.assertFalse(report.compliant)

@@ -29,7 +29,10 @@ class Assessment:
 def assess_supplier(
     required: Iterable[str], documents: Iterable[Document], as_of: date
 ) -> Assessment:
-    """Assess the supplied evidence, counting the expiry date as a valid day."""
+    """Assess the supplied evidence, counting the expiry date as a valid day.
+
+    Supply only documents available and already in effect on the assessment date.
+    """
     requirements = set(required)
     submitted = set()
     valid = set()
