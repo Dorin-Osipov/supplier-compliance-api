@@ -1,6 +1,8 @@
 # Supplier Compliance API
 
-A procurement team needs to know whether a supplier can be onboarded and, if blocked, which documents to request or renew. The Python assessment below is the core of that decision.
+A Python rules engine for supplier onboarding. Given the required documents, submitted evidence and an assessment date, it reports which documents to request, which to renew and whether the supplier is eligible.
+
+The current implementation runs locally using the Python standard library. Read the [assessment rules](compliance.py) or inspect the [tests for expiry dates, renewals and single blockers](test_compliance.py).
 
 ## Try an assessment
 
