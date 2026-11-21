@@ -2,9 +2,31 @@
 
 A Python rules engine for supplier onboarding. Given the required documents, submitted evidence and an assessment date, it reports which documents to request, which to renew and whether the supplier is eligible.
 
-The current implementation runs locally using the Python standard library. Read the [assessment rules](compliance.py) or inspect the [tests for expiry dates, renewals and single blockers](test_compliance.py).
+The FastAPI endpoint delegates to a standard-library rules engine. Read the [assessment rules](compliance.py) or inspect the [tests for expiry dates, renewals and single blockers](test_compliance.py).
 
-## Try an assessment
+## Run the API
+
+With Python 3.11+ in an active virtual environment, run:
+
+```sh
+python -m pip install -r requirements-dev.txt
+python -m uvicorn api:app
+```
+
+Open [interactive API docs](http://127.0.0.1:8000/docs) or submit this request from another terminal:
+
+```sh
+curl -sS http://127.0.0.1:8000/assessments -H 'Content-Type: application/json' \
+  -d '{"as_of":"2026-11-21","required":["insurance","registration"],"documents":[{"kind":"insurance","expires_on":"2026-11-20"}]}'
+```
+
+```json
+{"compliant":false,"missing":["registration"],"expired":["insurance"]}
+```
+
+A completed assessment returns HTTP 200, including when a supplier is blocked. Invalid requests return HTTP 422. Supply calendar dates as YYYY-MM-DD and evidence already in effect on the assessment date. Requests are evaluated independently and are not stored.
+
+## Try the Python rules directly
 
 From the repository root, start Python 3.9 or later and run this example.
 
