@@ -69,6 +69,18 @@ curl -sS "$supplier/assessments" -H 'Content-Type: application/json' \
   -d '{"required":["insurance"],"as_of":"2026-11-22"}'
 ```
 
-Each submission creates a new record and returns its UUID. Renewals preserve previous certificates. Assessments use the coverage dates of all evidence currently recorded for that supplier. A future renewal first counts on its start date. A supplier with no evidence is missing every required type.
+Each submission without an idempotency key creates a new record and returns its UUID. Renewals preserve previous certificates. Assessments use the coverage dates of all evidence currently recorded for that supplier. A future renewal first counts on its start date. A supplier with no evidence is missing every required type.
 
 To exercise the storage workflow, set `TEST_DATABASE_URL` to a disposable PostgreSQL database and run `python -m unittest -v`. The integration test applies the migration and writes sample rows.
+
+### Retry a submission after a timeout
+
+Generate one UUID per logical submission and reuse it in the `Idempotency-Key` header for every retry. Run this command twice with the same supplier and key:
+
+```sh
+curl -i "$supplier/documents" -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 82af5cd8-4534-49a6-9cf5-b0c8c8bf3b9b' \
+  -d '{"kind":"insurance","valid_from":"2026-01-01","expires_on":"2026-11-20"}'
+```
+
+Both requests return HTTP 201 and the same document ID. Reusing the key for different certificate details returns HTTP 409. Use a fresh key for a renewal. Keys are scoped to the supplier and retained with the document.
