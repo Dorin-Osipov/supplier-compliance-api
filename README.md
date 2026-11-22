@@ -54,3 +54,21 @@ For a presence-only check, `missing_documents(required, submitted_types)` return
 python -m unittest -v
 python -m doctest README.md
 ```
+
+## Store supplier documents in PostgreSQL
+
+Point `DATABASE_URL` at a PostgreSQL database where the application can create tables. Run `python -m storage` before starting Uvicorn. The migration records its version in the same transaction as its schema changes and can be run again. The original `POST /assessments` endpoint still runs without a database.
+
+With the API running, store a certificate and assess it from a second request:
+
+```sh
+supplier=http://127.0.0.1:8000/suppliers/9fa833d8-270e-40af-9c75-88180786504d
+curl -sS "$supplier/documents" -H 'Content-Type: application/json' \
+  -d '{"kind":"insurance","valid_from":"2026-01-01","expires_on":"2026-11-20"}'
+curl -sS "$supplier/assessments" -H 'Content-Type: application/json' \
+  -d '{"required":["insurance"],"as_of":"2026-11-22"}'
+```
+
+Each submission creates a new record and returns its UUID. Renewals preserve previous certificates. Assessments use the coverage dates of all evidence currently recorded for that supplier. A future renewal first counts on its start date. A supplier with no evidence is missing every required type.
+
+To exercise the storage workflow, set `TEST_DATABASE_URL` to a disposable PostgreSQL database and run `python -m unittest -v`. The integration test applies the migration and writes sample rows.
