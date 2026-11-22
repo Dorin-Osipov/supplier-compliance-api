@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated, Self
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, BeforeValidator, ConfigDict, StringConstraints, model_validator
 
 import storage
@@ -75,17 +75,39 @@ class StoredAssessmentRequest(BaseModel):
     as_of: CalendarDate
 
 
-@app.post("/suppliers/{supplier_id}/documents", status_code=201)
-def submit_document(supplier_id: UUID, evidence: Submission) -> SubmissionReceipt:
-    """Append one certificate to this supplier's history."""
-    document_id = uuid4()
+@app.post(
+    "/suppliers/{supplier_id}/documents",
+    status_code=201,
+    responses={409: {"description": "Idempotency key already used with different evidence"}},
+)
+def submit_document(
+    supplier_id: UUID,
+    evidence: Submission,
+    idempotency_key: Annotated[UUID | None, Header()] = None,
+) -> SubmissionReceipt:
+    """Submit a certificate. Retry the same request with the same key to replay its receipt."""
+    fields = (evidence.kind, evidence.valid_from, evidence.expires_on)
     with storage.connect() as conn:
-        conn.execute(
-            """INSERT INTO supplier_documents (id, supplier_id, kind, valid_from, expires_on)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (document_id, supplier_id, evidence.kind, evidence.valid_from, evidence.expires_on),
-        )
-    return SubmissionReceipt(id=document_id)
+        inserted = conn.execute(
+            """INSERT INTO supplier_documents
+                   (id, supplier_id, kind, valid_from, expires_on, idempotency_key)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               ON CONFLICT (supplier_id, idempotency_key) DO NOTHING
+               RETURNING id""",
+            (uuid4(), supplier_id, *fields, idempotency_key),
+        ).fetchone()
+        if inserted:
+            return SubmissionReceipt(id=inserted[0])
+
+        # A separate statement sees the winning commit under PostgreSQL READ COMMITTED.
+        existing = conn.execute(
+            """SELECT id, kind, valid_from, expires_on FROM supplier_documents
+               WHERE supplier_id = %s AND idempotency_key = %s""",
+            (supplier_id, idempotency_key),
+        ).fetchone()
+        if existing[1:] != fields:
+            raise HTTPException(409, "Idempotency key already used with different evidence")
+        return SubmissionReceipt(id=existing[0])
 
 
 @app.post("/suppliers/{supplier_id}/assessments")
