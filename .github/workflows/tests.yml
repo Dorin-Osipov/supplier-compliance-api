@@ -31,3 +31,27 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m unittest -v
       - run: python -m doctest README.md
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the documented quickstart
+        run: docker compose up --build --wait --wait-timeout 120
+      - name: Verify certificate persistence across container recreation
+        run: |
+          supplier=http://127.0.0.1:8000/suppliers/59a5a91e-4d09-435f-af79-62a16b5da52e
+          curl -fsS "$supplier/documents" -H 'Content-Type: application/json' \
+            -d '{"kind":"insurance","valid_from":"2026-01-01","expires_on":"2026-11-24"}' \
+            | jq -e '.id | type == "string"'
+          docker compose down
+          docker compose up --wait --wait-timeout 120
+          curl -fsS "$supplier/assessments" -H 'Content-Type: application/json' \
+            -d '{"required":["insurance"],"as_of":"2026-11-24"}' \
+            | jq -e '. == {"compliant":true,"missing":[],"expired":[]}'
+        shell: bash
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down --volumes
