@@ -4,7 +4,19 @@ A Python rules engine for supplier onboarding. Given the required documents, sub
 
 The FastAPI endpoint delegates to a standard-library rules engine. Read the [assessment rules](compliance.py) or inspect the [tests for expiry dates, renewals and single blockers](test_compliance.py).
 
-## Run the API
+## Quickstart with Docker Compose
+
+From the repository root, with Docker and Compose v2 installed, run:
+
+```sh
+docker compose up --build --wait
+```
+
+Open the [interactive API docs](http://127.0.0.1:8000/docs). Compose starts PostgreSQL 16, waits for it to accept connections, then runs the migrations before starting the API. The [stored-document example](#store-supplier-documents-in-postgresql) works immediately.
+
+Run `docker compose down` to stop the stack. Certificates stay in a named volume and are available after the next startup. The bundled credentials are for local development. Only the API port is published, on the loopback interface.
+
+## Run the API with Python
 
 With Python 3.11+ in an active virtual environment, run:
 
