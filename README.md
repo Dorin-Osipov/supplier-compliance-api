@@ -16,6 +16,28 @@ Open the [interactive API docs](http://127.0.0.1:8000/docs). Compose starts Post
 
 Run `docker compose down` to stop the stack. Certificates stay in a named volume and are available after the next startup. The bundled credentials are for local development. Only the API port is published, on the loopback interface.
 
+## Run the onboarding demo
+
+With the Compose stack running, use Python 3 on the host to run the [demo](examples/onboarding.py). It uses the standard library and creates a fresh sample supplier on each run.
+
+```sh
+python3 examples/onboarding.py
+```
+
+The assessment date stays fixed at 25 November 2026 throughout the demo.
+
+| Step | What the API demonstrates |
+| --- | --- |
+| Assess the original evidence | Insurance expired yesterday and registration is missing. The reviewer gets a separate action for each. |
+| Submit registration and renew insurance | The new insurance starts on the assessment date. Retrying its submission with the same key returns the same document ID. |
+| Assess the same supplier again | Both requirements are now satisfied and the supplier is eligible. |
+
+### Design decisions
+
+- **Coverage dates and document history.** A renewal adds a row. Earlier certificates remain available for other coverage dates. An assessment uses the evidence in the database when the request runs, so reconstructing exactly what a reviewer knew on a past date would also require tracking when evidence was received.
+- **Retry handling.** The client supplies a key per logical submission. A [PostgreSQL uniqueness constraint](migrations/002_document_idempotency.sql) lets concurrent API workers agree on one receipt. Reusing a key with different evidence returns HTTP 409.
+- **One assessment rule.** The stateless endpoint accepts evidence directly and the stored endpoint fetches it from PostgreSQL. Both call the same [Python function](compliance.py), so they agree on renewals and expiry-day boundaries.
+
 ## Run the API with Python
 
 With Python 3.11+ in an active virtual environment, run:

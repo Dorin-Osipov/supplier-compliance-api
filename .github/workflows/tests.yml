@@ -39,6 +39,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start the documented quickstart
         run: docker compose up --build --wait --wait-timeout 120
+      - name: Run the documented onboarding demo
+        run: python3 examples/onboarding.py
       - name: Verify certificate persistence across container recreation
         run: |
           supplier=http://127.0.0.1:8000/suppliers/59a5a91e-4d09-435f-af79-62a16b5da52e
